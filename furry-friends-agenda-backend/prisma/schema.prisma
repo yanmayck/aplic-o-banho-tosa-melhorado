@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  roles     String[] @default(["USER"]) // Pode ser "USER", "ADMIN", etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pets          Pet[] // Relação com Pets
+  appointments  Appointment[] // Relação com Agendamentos do cliente
+}
+
+model Pet {
+  id        String   @id @default(cuid())
+  name      String
+  species   String?
+  breed     String?
+  birthDate DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner     User     @relation(fields: [ownerId], references: [id])
+  ownerId   String
+
+  appointments Appointment[]
+}
+
+model ServiceType {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  description     String?
+  price           Float?
+  durationMinutes Int?      // Duração estimada em minutos
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  appointments    Appointment[]
+}
+
+model Appointment {
+  id                  String      @id @default(cuid())
+  appointmentDateTime DateTime
+  status              String      // Ex: SCHEDULED, COMPLETED, CANCELLED, NO_SHOW
+  notes               String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  pet                 Pet         @relation(fields: [petId], references: [id])
+  petId               String
+
+  serviceType         ServiceType @relation(fields: [serviceTypeId], references: [id])
+  serviceTypeId       String
+
+  client              User        @relation(fields: [clientId], references: [id])
+  clientId            String
+}

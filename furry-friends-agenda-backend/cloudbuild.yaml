@@ -1,0 +1,42 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/furry-friends-agenda-backend:$COMMIT_SHA', '.']
+    # dir: 'furry-friends-agenda-backend' # Only needed if cloudbuild.yaml is at the monorepo root
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/furry-friends-agenda-backend:$COMMIT_SHA']
+    # dir: 'furry-friends-agenda-backend'
+
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'furry-friends-agenda-backend' # Your Cloud Run service name
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/furry-friends-agenda-backend:$COMMIT_SHA'
+      - '--region'
+      - 'your-gcp-region' # e.g., us-central1
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated' # Or configure IAM for authentication
+      - '--set-env-vars'
+      - '^#^DATABASE_URL=your_cloud_sql_connection_string_or_secret_manager_ref,JWT_SECRET=your_jwt_secret_from_secret_manager_ref'
+      # Add other environment variables here. For Cloud SQL, you might use a direct connection string
+      # or the Cloud SQL proxy. The DATABASE_URL would look like:
+      # For direct connection (ensure VPC connector for Cloud Run if private IP):
+      # DATABASE_URL=postgresql://USER:PASSWORD@PRIVATE_IP:5432/DBNAME?schema=public
+      # For Cloud SQL Proxy (Cloud Run connects via this socket):
+      # DATABASE_URL=postgresql://USER:PASSWORD@localhost/DBNAME?schema=public&host=/cloudsql/PROJECT_ID:REGION:INSTANCE_ID
+      # If using Cloud SQL Proxy, also add:
+      # - '--add-cloudsql-instances'
+      # - 'PROJECT_ID:REGION:INSTANCE_ID'
+
+images:
+  - 'gcr.io/$PROJECT_ID/furry-friends-agenda-backend:$COMMIT_SHA'
+
+# Note: This cloudbuild.yaml should be placed in the 'furry-friends-agenda-backend' directory.
+# If you place it at the monorepo root, you'll need to adjust the 'dir' property in the build/push steps. 
