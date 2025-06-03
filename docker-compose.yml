@@ -15,6 +15,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - furry_friends_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   backend:
     build:
@@ -24,7 +30,7 @@ services:
     restart: unless-stopped
     depends_on:
       db: # Espera o serviço db estar saudável antes de iniciar
-        condition: service_started # Para um healthcheck mais robusto, o db precisaria de um script de healthcheck
+        condition: service_healthy # Para um healthcheck mais robusto, o db precisaria de um script de healthcheck
     environment:
       NODE_ENV: production
       PORT: ${BACKEND_PORT?ERRO_BACKEND_PORT_NAO_DEFINIDO_NO_ENV}
@@ -41,13 +47,25 @@ services:
       # - ./furry-friends-agenda-backend/prisma:/usr/src/app/prisma
       # Mas para produção, a imagem já contém o código buildado.
       # Se você tiver uploads de arquivos, precisará de um volume para eles.
-      - ./furry-friends-agenda-backend/.env:/usr/src/app/.env # Monta o .env do backend para o Prisma CLI em runtime, se necessário.
-                                                            # No entanto, as vars de ambiente já são passadas acima para a aplicação.
-                                                            # O ideal é que o Prisma use as vars de ambiente também.
     networks:
       - furry_friends_network
     # Adicionar um entrypoint/comando para rodar migrações automaticamente ao iniciar seria ideal para produção.
     # command: ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+
+  frontend:
+    build:
+      context: ./furry-friends-agenda-app
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL?ERRO_VITE_API_BASE_URL_NAO_DEFINIDO_NO_ENV}
+    container_name: furry_friends_frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    networks:
+      - furry_friends_network
+    depends_on:
+      backend:
+        condition: service_healthy # Assuming backend has a healthcheck defined in its Dockerfile
 
 networks:
   furry_friends_network:

@@ -14,7 +14,7 @@ ENV PRISMA_TELEMETRY_INFORMATION='disable' \
 COPY package*.json ./
 
 # Instalar todas as dependências (incluindo devDependencies para build e Prisma)
-RUN npm install
+RUN npm ci
 
 # Copiar todo o código da aplicação
 COPY . .
@@ -36,6 +36,9 @@ RUN npm prune --production
 # ---- Estágio de Produção ----
 FROM node:20-alpine AS runner
 
+# Criar usuário e grupo não-root
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 # Definir diretório de trabalho
 WORKDIR /usr/src/app
 
@@ -49,21 +52,30 @@ ENV NODE_ENV=production
 # Copiar schema.prisma para o diretório de produção (Prisma Client precisa dele em runtime)
 COPY --from=builder /usr/src/app/prisma ./prisma
 
-# Copiar o Prisma Client gerado
-COPY --from=builder /usr/src/app/node_modules/.prisma/client ./node_modules/.prisma/client
+# Mudar propriedade dos arquivos para o usuário não-root antes de copiar o resto
+# É importante que o WORKDIR exista e seja propriedade do novo usuário
+RUN mkdir -p ./node_modules/.prisma/client ./dist ./node_modules && chown -R appuser:appgroup /usr/src/app
+COPY --from=builder --chown=appuser:appgroup /usr/src/app/node_modules/.prisma/client ./node_modules/.prisma/client
 
 # Copiar os artefatos de build (dist) do estágio builder
-COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder --chown=appuser:appgroup /usr/src/app/dist ./dist
 
 # Copiar as dependências de produção do estágio builder
-COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder --chown=appuser:appgroup /usr/src/app/node_modules ./node_modules
 
 # Copiar package.json (alguns frameworks ou ferramentas podem precisar dele)
-COPY package.json .
+COPY --chown=appuser:appgroup package.json .
+
+# Mudar para usuário não-root
+USER appuser
 
 # Expor a porta que a aplicação vai rodar (definida no .env ou aqui)
 # Este valor deve corresponder à variável de ambiente PORT usada pela sua aplicação
 # EXPOSE 3000 # Será exposto pelo docker-compose
+
+# Healthcheck - Certifique-se que sua aplicação tem um endpoint /api/health ou ajuste
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-3000}/api/health || exit 1
 
 # Comando para iniciar a aplicação em modo de produção
 # Executa as migrações do Prisma e então inicia a aplicação

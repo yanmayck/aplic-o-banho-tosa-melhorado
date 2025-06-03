@@ -1,0 +1,10 @@
+# IDE/OS-specific files
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local Docker override files
+docker-compose.override.yml
+docker-compose.override.yaml
+.env 
