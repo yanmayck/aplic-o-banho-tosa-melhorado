@@ -7,4 +7,9 @@ Thumbs.db
 # Local Docker override files
 docker-compose.override.yml
 docker-compose.override.yaml
+.env
+.env.*
+!.env.example
+
+# Local Docker override files
 .env 

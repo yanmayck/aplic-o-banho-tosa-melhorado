@@ -8,37 +8,29 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthModule = void 0;
 const common_1 = require("@nestjs/common");
+const jwt_1 = require("@nestjs/jwt");
+const passport_1 = require("@nestjs/passport");
+const prisma_module_1 = require("../prisma/prisma.module");
 const auth_service_1 = require("./auth.service");
 const auth_controller_1 = require("./auth.controller");
-const prisma_module_1 = require("../prisma/prisma.module");
-const passport_1 = require("@nestjs/passport");
-const jwt_1 = require("@nestjs/jwt");
-const config_1 = require("@nestjs/config");
-const jwt_strategy_1 = require("./strategies/jwt.strategy");
-const jwt_constants_1 = require("./constants/jwt.constants");
-const users_module_1 = require("../users/users.module");
+const jwt_strategy_1 = require("./jwt.strategy");
+const local_strategy_1 = require("./local.strategy");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
 exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            prisma_module_1.PrismaModule,
             passport_1.PassportModule,
-            config_1.ConfigModule,
-            users_module_1.UsersModule,
-            jwt_1.JwtModule.registerAsync({
-                imports: [config_1.ConfigModule],
-                useFactory: async (configService) => ({
-                    secret: configService.get('JWT_SECRET') || jwt_constants_1.jwtConstants.secret,
-                    signOptions: { expiresIn: configService.get('JWT_EXPIRES_IN') || '3600s' },
-                }),
-                inject: [config_1.ConfigService],
+            prisma_module_1.PrismaModule,
+            jwt_1.JwtModule.register({
+                secret: process.env.JWT_SECRET,
+                signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1d' },
             }),
         ],
+        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy, local_strategy_1.LocalStrategy],
         controllers: [auth_controller_1.AuthController],
-        providers: [auth_service_1.AuthService, jwt_strategy_1.JwtStrategy],
-        exports: [auth_service_1.AuthService, jwt_1.JwtModule],
+        exports: [auth_service_1.AuthService],
     })
 ], AuthModule);
 //# sourceMappingURL=auth.module.js.map

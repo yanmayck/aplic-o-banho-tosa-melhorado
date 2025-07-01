@@ -1,12 +1,39 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
+import { Role } from '../../auth/enums/role.enum';
 
 export class UpdateUserDto {
-  @IsOptional()
   @IsString()
-  @MinLength(2)
+  @IsOptional()
   name?: string;
 
-  // A atualização de senha pode ser um DTO separado e um endpoint específico
-  // por questões de segurança e UX (ex: pedir senha atual).
-  // Por enquanto, vamos focar no nome.
+  @IsEmail({}, { message: 'Por favor, insira um email válido' })
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  @MinLength(6, { message: 'A senha deve ter no mínimo 6 caracteres' })
+  password?: string;
+
+  @IsEnum(Role)
+  @IsOptional()
+  role?: Role;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @IsString()
+  @IsOptional()
+  cpf?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
 }

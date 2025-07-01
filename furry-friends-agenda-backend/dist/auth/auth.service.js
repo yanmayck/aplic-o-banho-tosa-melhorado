@@ -15,6 +15,7 @@ const prisma_service_1 = require("../prisma/prisma.service");
 const jwt_1 = require("@nestjs/jwt");
 const users_service_1 = require("../users/users.service");
 const bcrypt = require("bcrypt");
+const role_enum_1 = require("./enums/role.enum");
 let AuthService = class AuthService {
     prisma;
     jwtService;
@@ -26,7 +27,7 @@ let AuthService = class AuthService {
     }
     async validateUser(email, pass) {
         const user = await this.usersService.findOneByEmail(email);
-        if (user && await bcrypt.compare(pass, user.password)) {
+        if (user && (await bcrypt.compare(pass, user.password))) {
             const { password, ...result } = user;
             return result;
         }
@@ -37,24 +38,29 @@ let AuthService = class AuthService {
         if (!user) {
             throw new common_1.UnauthorizedException('Invalid credentials');
         }
-        const payload = { username: user.email, sub: user.id, roles: user.roles };
+        const payload = {
+            username: user.email.split('@')[0],
+            email: user.email,
+            sub: user.id,
+            role: user.role
+        };
         return {
             access_token: this.jwtService.sign(payload),
             user: {
                 id: user.id,
                 email: user.email,
                 name: user.name,
-                roles: user.roles,
-            }
+                role: user.role,
+            },
         };
     }
     async register(registerDto) {
         try {
-            const newUser = await this.usersService.createUser({
+            const newUser = await this.usersService.create({
                 email: registerDto.email,
                 password: registerDto.password,
-                name: registerDto.name,
-                roles: registerDto.roles || ['USER'],
+                name: registerDto.name || registerDto.email.split('@')[0],
+                role: registerDto.roles?.[0] || role_enum_1.Role.USER,
             });
             const { password, ...result } = newUser;
             return result;
@@ -63,9 +69,58 @@ let AuthService = class AuthService {
             if (error instanceof common_1.ConflictException) {
                 throw error;
             }
-            console.error("Error during registration: ", error);
+            console.error('Error during registration: ', error);
             throw new common_1.InternalServerErrorException('Could not register user');
         }
+    }
+    async validateEmployee(email, password) {
+        const employee = await this.prisma.employee.findUnique({
+            where: { email },
+        });
+        if (!employee || !employee.isActive) {
+            throw new common_1.UnauthorizedException('Credenciais inválidas');
+        }
+        const isPasswordValid = await bcrypt.compare(password, employee.password);
+        if (!isPasswordValid) {
+            throw new common_1.UnauthorizedException('Credenciais inválidas');
+        }
+        return {
+            id: employee.id,
+            email: employee.email,
+            name: employee.name,
+            role: employee.role,
+        };
+    }
+    async loginEmployee(employee) {
+        const payload = {
+            email: employee.email,
+            sub: employee.id,
+            role: employee.role
+        };
+        return {
+            access_token: this.jwtService.sign(payload),
+            employee: {
+                id: employee.id,
+                email: employee.email,
+                name: employee.name,
+                role: employee.role,
+            },
+        };
+    }
+    async createEmployee(data) {
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+        const employee = await this.prisma.employee.create({
+            data: {
+                ...data,
+                password: hashedPassword,
+            },
+        });
+        return {
+            id: employee.id,
+            email: employee.email,
+            name: employee.name,
+            role: employee.role,
+        };
     }
 };
 exports.AuthService = AuthService;

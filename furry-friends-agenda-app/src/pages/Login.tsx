@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -11,9 +10,10 @@ import { toast } from "@/components/ui/use-toast";
 const Login: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
-  
-  const handleLogin = () => {
+
+  const handleLogin = async () => {
     if (!username || !password) {
       toast({
         title: "Erro",
@@ -22,9 +22,11 @@ const Login: React.FC = () => {
       });
       return;
     }
-    
-    const success = login(username, password);
-    
+
+    setIsLoading(true);
+    const success = await login(username, password);
+    setIsLoading(false);
+
     if (!success) {
       toast({
         title: "Erro de autenticação",
@@ -33,7 +35,7 @@ const Login: React.FC = () => {
       });
     }
   };
-  
+
   return (
     <div className="h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md p-6">
@@ -44,35 +46,35 @@ const Login: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">PetShop Manager</h1>
           <p className="text-gray-500">Faça login para acessar o sistema</p>
         </div>
-        
+
         <div className="space-y-4">
           <div>
             <Label htmlFor="username">Usuário</Label>
-            <Input 
-              id="username" 
+            <Input
+              id="username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)} 
+              onChange={(e) => setUsername(e.target.value)}
               placeholder="Digite seu usuário"
             />
           </div>
-          
+
           <div>
             <Label htmlFor="password">Senha</Label>
-            <Input 
-              id="password" 
+            <Input
+              id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)} 
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Digite sua senha"
             />
           </div>
-          
+
           <div className="pt-2">
-            <Button onClick={handleLogin} className="w-full">
-              Entrar
+            <Button onClick={handleLogin} className="w-full" disabled={isLoading}>
+              {isLoading ? 'Entrando...' : 'Entrar'}
             </Button>
           </div>
-          
+
           <div className="text-center text-sm text-gray-500 mt-4">
             <p>Usuários demonstração:</p>
             <p>Admin: admin / admin123</p>

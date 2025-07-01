@@ -24,19 +24,19 @@ let PetsController = class PetsController {
         this.petsService = petsService;
     }
     create(createPetDto, req) {
-        return this.petsService.create(createPetDto, req.user.sub);
+        return this.petsService.create(createPetDto, req.user.userId);
     }
     findAll(req) {
-        return this.petsService.findAllByOwner(req.user.sub);
+        return this.petsService.findAllByOwner(req.user.userId);
     }
     findOne(id, req) {
-        return this.petsService.findOneByOwner(id, req.user.sub);
+        return this.petsService.findOneByOwner(id, req.user.userId);
     }
     update(id, updatePetDto, req) {
-        return this.petsService.update(id, updatePetDto, req.user.sub);
+        return this.petsService.update(id, updatePetDto, req.user.userId);
     }
     remove(id, req) {
-        return this.petsService.remove(id, req.user.sub);
+        return this.petsService.remove(id, req.user.userId);
     }
 };
 exports.PetsController = PetsController;

@@ -7,6 +7,7 @@
 generator client {
   provider = "prisma-client-js"
   output   = "../node_modules/.prisma/client"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -17,14 +18,31 @@ datasource db {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  password  String
-  name      String?
-  roles     String[] @default(["USER"]) // Pode ser "USER", "ADMIN", etc.
+  name      String
+  cpf       String?  @unique // CPF deve ser único
+  phone     String?
+  address   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  pets          Pet[] // Relação com Pets
-  appointments  Appointment[] // Relação com Agendamentos do cliente
+  pets                Pet[]           @relation("PetToOwner") // Relação com Pets
+  appointmentsAsClient Appointment[]   @relation("AppointmentToClient") // Relação com Agendamentos do cliente
+}
+
+model Employee {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("HANDLER") // Pode ser "ADMIN", "HANDLER", "RECEPTIONIST"
+  cpf       String   @unique
+  phone     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedAppointments Appointment[] @relation("AppointmentToHandler") // Agendamentos atribuídos a este profissional
 }
 
 model Pet {
@@ -36,7 +54,7 @@ model Pet {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner     User     @relation(fields: [ownerId], references: [id])
+  owner     User     @relation("PetToOwner", fields: [ownerId], references: [id])
   ownerId   String
 
   appointments Appointment[]
@@ -68,6 +86,9 @@ model Appointment {
   serviceType         ServiceType @relation(fields: [serviceTypeId], references: [id])
   serviceTypeId       String
 
-  client              User        @relation(fields: [clientId], references: [id])
+  client              User        @relation("AppointmentToClient", fields: [clientId], references: [id])
   clientId            String
+
+  handler             Employee?   @relation("AppointmentToHandler", fields: [handlerId], references: [id])
+  handlerId           String?     // O '?' torna opcional, pois um agendamento pode ser criado antes de se definir o profissional
 }

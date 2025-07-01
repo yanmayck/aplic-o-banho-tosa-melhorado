@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '.prisma/client';
 
 @Injectable()
 export class PrismaService
@@ -8,9 +8,7 @@ export class PrismaService
 {
   constructor() {
     super({
-      // Optionally, you can pass PrismaClient options here,
-      // such as logging configuration.
-      // log: ['query', 'info', 'warn', 'error'],
+      log: ['query', 'info', 'warn', 'error'],
     });
   }
 

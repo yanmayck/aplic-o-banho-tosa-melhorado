@@ -9,61 +9,62 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UsersService = exports.roundsOfHashing = void 0;
+exports.UsersService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
-const client_1 = require("@prisma/client");
 const bcrypt = require("bcrypt");
-exports.roundsOfHashing = 10;
+const role_enum_1 = require("../auth/enums/role.enum");
 let UsersService = class UsersService {
     prisma;
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async createUser(data) {
+    async create(createUserDto) {
         const existingUser = await this.prisma.user.findUnique({
-            where: { email: data.email },
+            where: { email: createUserDto.email },
         });
         if (existingUser) {
             throw new common_1.ConflictException('User with this email already exists');
         }
-        const hashedPassword = await bcrypt.hash(data.password, exports.roundsOfHashing);
+        const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+        const userRoles = createUserDto.role ? [createUserDto.role] : [role_enum_1.Role.USER];
+        const { role, ...restOfDto } = createUserDto;
         return this.prisma.user.create({
             data: {
-                ...data,
+                ...restOfDto,
                 password: hashedPassword,
+                roles: userRoles,
             },
         });
     }
     async findOneById(id) {
-        const user = await this.prisma.user.findUnique({ where: { id } });
-        if (!user) {
-            return null;
-        }
-        return user;
+        return this.prisma.user.findUnique({ where: { id } });
     }
     async findOneByEmail(email) {
-        const user = await this.prisma.user.findUnique({ where: { email } });
-        if (!user) {
-            return null;
-        }
-        return user;
+        return this.prisma.user.findUnique({ where: { email } });
     }
-    async updateUser(id, data) {
-        try {
-            const user = await this.prisma.user.update({
-                where: { id },
-                data,
-            });
-            return user;
+    async findAll(role) {
+        const users = await this.prisma.user.findMany({
+            where: {
+                ...(role && { roles: { has: role } }),
+            },
+        });
+        return users.map((user) => {
+            const { password, ...result } = user;
+            return result;
+        });
+    }
+    async updateUser(id, updateUserDto) {
+        if (updateUserDto.password) {
+            updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
         }
-        catch (error) {
-            if (error instanceof client_1.Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-                throw new common_1.NotFoundException(`User with ID "${id}" not found`);
-            }
-            console.error("Error updating user:", error);
-            throw error;
-        }
+        return this.prisma.user.update({
+            where: { id },
+            data: updateUserDto,
+        });
+    }
+    async remove(id) {
+        return this.prisma.user.delete({ where: { id } });
     }
 };
 exports.UsersService = UsersService;

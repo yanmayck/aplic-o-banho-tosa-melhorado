@@ -24,19 +24,19 @@ let AppointmentsController = class AppointmentsController {
         this.appointmentsService = appointmentsService;
     }
     create(createAppointmentDto, req) {
-        return this.appointmentsService.create(createAppointmentDto, req.user.sub);
+        return this.appointmentsService.create(createAppointmentDto, req.user.userId);
     }
     findAll(req) {
-        return this.appointmentsService.findAllByClient(req.user.sub);
+        return this.appointmentsService.findAllByClient(req.user.userId);
     }
     findOne(id, req) {
-        return this.appointmentsService.findOneByClient(id, req.user.sub);
+        return this.appointmentsService.findOneByClient(id, req.user.userId);
     }
     update(id, updateAppointmentDto, req) {
-        return this.appointmentsService.update(id, updateAppointmentDto, req.user.sub);
+        return this.appointmentsService.update(id, updateAppointmentDto, req.user.userId);
     }
     remove(id, req) {
-        return this.appointmentsService.remove(id, req.user.sub);
+        return this.appointmentsService.remove(id, req.user.userId);
     }
 };
 exports.AppointmentsController = AppointmentsController;

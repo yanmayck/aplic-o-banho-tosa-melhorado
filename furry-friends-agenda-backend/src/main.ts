@@ -18,7 +18,9 @@ async function bootstrap() {
 
   const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS?.split(',') || [
     'http://localhost:5173',
-  ];
+    'http://localhost:8080',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean);
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -30,9 +32,12 @@ async function bootstrap() {
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 3600,
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
   console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap().catch((err) => {

@@ -1,66 +1,70 @@
 import {
   Controller,
   Get,
-  Patch,
+  Post,
   Body,
+  Patch,
+  Param,
+  Delete,
   UseGuards,
-  Request,
-  ValidationPipe,
-  UsePipes,
+  Query,
+  NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from '@prisma/client'; // Para tipagem do retorno
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface'; // Importar JwtPayload
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Role } from '../auth/enums/role.enum';
+import { User } from '@prisma/client';
 
 @Controller('users')
+@UseGuards(JwtAuthGuard) // Protege todas as rotas deste controller
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('me')
-  async getMyProfile(
-    @Request() req: { user: JwtPayload },
-  ): Promise<Omit<User, 'password'> | null> {
-    const user = await this.usersService.findOneById(req.user.userId); // Usar req.user.userId
+  @Post()
+  async create(@Body() createUserDto: CreateUserDto) {
+    const user = await this.usersService.create(createUserDto);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user;
+    return result;
+  }
+
+  @Get()
+  async findAll(@Query('role') role?: Role) {
+    return this.usersService.findAll(role);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string): Promise<Omit<User, 'password'>> {
+    const user = await this.usersService.findOneById(id);
     if (!user) {
-      return null; // Ou lançar NotFoundException, dependendo da preferência
+      throw new NotFoundException(`User with ID ${id} not found`);
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    const { password, ...result } = user;
+    return result;
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Patch('me')
-  @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
-  async updateMyProfile(
-    @Request() req: { user: JwtPayload }, // Tipar req
-    @Body() updateUserDto: UpdateUserDto,
-  ): Promise<Omit<User, 'password'> | null> {
-    const updatedUser = await this.usersService.updateUser(
-      req.user.userId, // Usar req.user.userId
-      updateUserDto,
-    );
-    if (updatedUser) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...userWithoutPassword } = updatedUser;
-      return userWithoutPassword;
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    const user = await this.usersService.updateUser(id, updateUserDto);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
     }
-    return null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user;
+    return result;
   }
 
-  // Futuramente, adicionar endpoints para admin:
-  // @Roles('ADMIN') // Supondo um decorator @Roles e um RolesGuard
-  // @UseGuards(JwtAuthGuard, RolesGuard)
-  // @Get()
-  // findAll() { ... }
-
-  // @Roles('ADMIN')
-  // @UseGuards(JwtAuthGuard, RolesGuard)
-  // @Get(':id')
-  // findOne(@Param('id') id: string) { ... }
-
-  // etc.
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    const user = await this.usersService.remove(id);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user;
+    return result;
+  }
 }

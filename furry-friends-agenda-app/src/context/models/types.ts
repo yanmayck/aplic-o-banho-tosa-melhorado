@@ -1,11 +1,13 @@
-
 // Types and interfaces for the store
-import { ServiceType, TransportType, AppointmentStatus } from "../StoreContext";
+export type ServiceType = "bath" | "grooming" | "both" | "package";
+export type TransportType = "pickup" | "delivery" | "none";
+export type AppointmentStatus = "waiting" | "progress" | "completed" | "canceled";
 
 // Client model
 export interface Client {
   id: string;
   tutorName: string;
+  name: string;
   petName: string;
   cpf: string;
   phone: string;
@@ -16,45 +18,41 @@ export interface Client {
 // Pet model
 export interface Pet {
   id: string;
-  clientId: string;
   name: string;
-  foodType: string;
-  lastTickMedicine: {
-    name: string;
-    date: string;
-  };
+  species: string;
+  breed: string;
+  birthDate: string;
+  ownerId: string;
+  clientId: string;
   rabiesVaccine: {
     isUpToDate: boolean;
     lastDate: string;
   };
-  vaccineHistory: Array<{
-    name: string;
-    date: string;
-  }>;
 }
 
 // Groomer model
 export interface Groomer {
   id: string;
   name: string;
-  status: "available" | "busy";
-  commissionPercentage: number;
+  phone: string;
+  email: string;
+  commission: number;
 }
 
 // Appointment model
 export interface Appointment {
   id: string;
-  clientId: string;
-  petName: string;
   date: string;
   time: string;
-  serviceType: ServiceType;
-  groomerId: string | null;
-  status: AppointmentStatus;
-  packageId?: string | null;
-  transportType?: TransportType;
+  clientName: string;
+  petName: string;
+  service: ServiceType;
+  transport: TransportType;
   price: number;
-  points?: number;
+  status: AppointmentStatus;
+  groomerId?: string;
+  notes?: string;
+  points?: number; // Pontos para o tosador
 }
 
 // Commission model
@@ -62,7 +60,7 @@ export interface Commission {
   id: string;
   groomerId: string;
   appointmentId: string;
-  value: number;
+  amount: number;
   date: string;
 }
 
@@ -70,21 +68,25 @@ export interface Commission {
 export interface Package {
   id: string;
   name: string;
-  description: string;
-  includesBaths: number;
-  includesGrooming: boolean;
-  includesHydration: boolean;
-  basePrice: number;
-  pickupPrice: number;
+  services: ServiceType[];
+  price: number;
+  available: boolean;
 }
 
 // Groomer Points model
 export interface GroomerPoint {
   id: string;
   groomerId: string;
-  appointmentId: string;
   points: number;
-  date: string;
+  month: number;
+  year: number;
+  appointmentId: string;
+}
+
+export enum Role {
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+  HANDLER = 'HANDLER',
 }
 
 // Utility function for generating IDs

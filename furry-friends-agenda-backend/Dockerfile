@@ -10,20 +10,18 @@ WORKDIR /usr/src/app
 ENV PRISMA_TELEMETRY_INFORMATION='disable' \
     PRISMA_UPDATE_NOTIFIER='disable'
 
-# Copiar package.json e package-lock.json (ou yarn.lock, etc.)
+# Copiar package.json e package-lock.json
 COPY package*.json ./
 
-# Instalar todas as dependências (incluindo devDependencies para build e Prisma)
+# Instalar dependências.
+# Adicionar openssl para resolver o aviso do Prisma sobre libssl/openssl.
+RUN apt-get update && apt-get install -y openssl --no-install-recommends
 RUN npm ci
 
-# Copiar todo o código da aplicação
+# Copiar TODO o código da aplicação (incluindo a pasta prisma/schema.prisma) AGORA
 COPY . .
 
-# Gerar o Prisma Client (requer o schema.prisma e as dependências)
-# Este passo pode falhar se DATABASE_URL não estiver disponível em tempo de build
-# para alguns provedores de banco de dados que o Prisma tenta contatar.
-# Para PostgreSQL, geralmente funciona sem uma DATABASE_URL real aqui, pois ele gera baseado no schema.
-# Se precisar de uma DATABASE_URL para este passo, ela pode ser passada como build arg.
+# Gerar o Prisma Client (agora o schema.prisma está presente)
 RUN npx prisma generate
 
 # Fazer o build da aplicação TypeScript para JavaScript
@@ -36,6 +34,9 @@ RUN npm prune --production
 # ---- Estágio de Produção ----
 FROM node:20-alpine AS runner
 
+# Instalar curl para o healthcheck
+RUN apk add --no-cache curl
+
 # Criar usuário e grupo não-root
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
@@ -44,10 +45,6 @@ WORKDIR /usr/src/app
 
 # Variáveis de ambiente
 ENV NODE_ENV=production
-# A PORTA será definida pelo .env ou docker-compose
-# A DATABASE_URL será definida pelo .env ou docker-compose
-# O JWT_SECRET será definido pelo .env ou docker-compose
-# O JWT_EXPIRES_IN será definido pelo .env ou docker-compose
 
 # Copiar schema.prisma para o diretório de produção (Prisma Client precisa dele em runtime)
 COPY --from=builder /usr/src/app/prisma ./prisma
@@ -69,14 +66,10 @@ COPY --chown=appuser:appgroup package.json .
 # Mudar para usuário não-root
 USER appuser
 
-# Expor a porta que a aplicação vai rodar (definida no .env ou aqui)
-# Este valor deve corresponder à variável de ambiente PORT usada pela sua aplicação
-# EXPOSE 3000 # Será exposto pelo docker-compose
-
 # Healthcheck - Certifique-se que sua aplicação tem um endpoint /api/health ou ajuste
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:${PORT:-3000}/api/health || exit 1
+    CMD curl -f http://127.0.0.1:${PORT:-3000}/api/health || exit 1
 
 # Comando para iniciar a aplicação em modo de produção
 # Executa as migrações do Prisma e então inicia a aplicação
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"] 
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

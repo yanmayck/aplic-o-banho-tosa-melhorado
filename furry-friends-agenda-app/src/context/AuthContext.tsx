@@ -1,94 +1,141 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { post, get } from './utils/api-client';
+import { jwtDecode } from 'jwt-decode';
+import { toast } from '@/components/ui/use-toast';
 
 // Define the user types
-export type UserRole = "admin" | "common";
+export type UserRole = 'USER' | 'ADMIN' | 'HANDLER';
 
 // Define the user interface
 export interface User {
   id: string;
+  email: string;
   username: string;
-  role: UserRole;
+  roles: UserRole[];
+}
+
+interface DecodedToken {
+  userId: string;
+  email: string;
+  username: string;
+  roles: UserRole[];
+  exp: number;
 }
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  isAdmin: () => boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Demo users for the app
-const USERS = [
-  { id: "1", username: "admin", password: "admin123", role: "admin" as UserRole },
-  { id: "2", username: "comum", password: "comum123", role: "common" as UserRole }
-];
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
-  
-  // Check localStorage on mount to restore session
+  const [token, setToken] = useState<string | null>(localStorage.getItem('authToken'));
+  const [isLoading, setIsLoading] = useState(true);
+
+  const verifyToken = async (currentToken: string) => {
+    try {
+      // Verifica se o token expirou
+      const decoded = jwtDecode<DecodedToken>(currentToken);
+      const currentTime = Date.now() / 1000;
+      
+      if (decoded.exp < currentTime) {
+        throw new Error('Token expirado');
+      }
+
+      // Verifica se o token é válido no backend
+      await get('/auth/verify', currentToken);
+      
+      setUser({ id: decoded.userId, email: decoded.email, username: decoded.username, roles: decoded.roles || [] });
+      setToken(currentToken);
+      return true;
+    } catch (error) {
+      console.error('Token inválido:', error);
+      localStorage.removeItem('authToken');
+      setUser(null);
+      setToken(null);
+      return false;
+    }
+  };
+
   useEffect(() => {
-    const storedUser = localStorage.getItem("petshop-user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    const currentToken = localStorage.getItem('authToken');
+    if (currentToken) {
+      verifyToken(currentToken).finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
     }
   }, []);
 
-  // Login function
-  const login = (username: string, password: string): boolean => {
-    const foundUser = USERS.find(u => 
-      u.username === username && u.password === password
-    );
-    
-    if (foundUser) {
-      const userInfo = {
-        id: foundUser.id,
-        username: foundUser.username,
-        role: foundUser.role
-      };
-      
-      setUser(userInfo);
-      localStorage.setItem("petshop-user", JSON.stringify(userInfo));
-      return true;
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await post<{ accessToken: string }>('/auth/login', {
+        email,
+        password,
+      });
+      const newToken = response.accessToken;
+      if (newToken) {
+        const isValid = await verifyToken(newToken);
+        if (isValid) {
+          localStorage.setItem('authToken', newToken);
+          toast({
+            title: 'Login realizado com sucesso!',
+            description: 'Bem-vindo de volta!',
+          });
+          return true;
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Login failed:', error);
+      toast({
+        title: 'Erro ao fazer login',
+        description: 'Verifique suas credenciais e tente novamente.',
+        variant: 'destructive',
+      });
+      return false;
     }
-    
-    return false;
   };
-  
-  // Logout function
+
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("petshop-user");
+    setToken(null);
+    localStorage.removeItem('authToken');
+    toast({
+      title: 'Logout realizado',
+      description: 'Até logo!',
+    });
   };
-  
-  // Helper function to check if user is admin
-  const isAdmin = (): boolean => {
-    return user?.role === "admin";
-  };
-  
+
+  const isAdmin = user?.roles.includes('ADMIN') ?? false;
+
   const value = {
     user,
+    token,
     isAuthenticated: !!user,
+    isLoading,
     login,
     logout,
-    isAdmin
+    isAdmin,
   };
-  
+
   return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };

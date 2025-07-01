@@ -25,7 +25,8 @@ let ServiceTypesService = class ServiceTypesService {
             });
         }
         catch (error) {
-            if (error instanceof client_1.Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+            if (error instanceof client_1.Prisma.PrismaClientKnownRequestError &&
+                error.code === 'P2002') {
                 throw new common_1.NotFoundException(`ServiceType with name "${createServiceTypeDto.name}" already exists.`);
             }
             throw error;
@@ -69,7 +70,8 @@ let ServiceTypesService = class ServiceTypesService {
             });
         }
         catch (error) {
-            if (error instanceof client_1.Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+            if (error instanceof client_1.Prisma.PrismaClientKnownRequestError &&
+                error.code === 'P2025') {
                 throw new common_1.NotFoundException(`ServiceType with ID "${id}" not found`);
             }
             throw error;
